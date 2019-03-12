@@ -4,6 +4,8 @@ package me.dinowernli.grpc.prometheus;
 
 import io.prometheus.client.CollectorRegistry;
 
+import java.util.Optional;
+
 /**
  * Holds information about which metrics should be kept track of during rpc calls. Can be used to
  * turn on more elaborate and expensive metrics, such as latency histograms.
@@ -16,12 +18,24 @@ public class Configuration {
   private final CollectorRegistry collectorRegistry;
   private final double[] latencyBuckets;
 
+  private final Optional<String> serviceId;
+
   /** Returns a {@link Configuration} for recording all cheap metrics about the rpcs. */
   public static Configuration cheapMetricsOnly() {
     return new Configuration(
         false /* isIncludeLatencyHistograms */,
         CollectorRegistry.defaultRegistry,
-        DEFAULT_LATENCY_BUCKETS);
+        DEFAULT_LATENCY_BUCKETS,
+        Optional.empty());
+  }
+
+  /** Returns a {@link Configuration} for recording all cheap metrics about the rpcs tag with the service name. */
+  public static Configuration cheapMetricsOnly(String serviceName) {
+    return new Configuration(
+        false /* isIncludeLatencyHistograms */,
+        CollectorRegistry.defaultRegistry,
+        DEFAULT_LATENCY_BUCKETS,
+        Optional.of(serviceName));
   }
 
   /**
@@ -32,7 +46,20 @@ public class Configuration {
     return new Configuration(
         true /* isIncludeLatencyHistograms */,
         CollectorRegistry.defaultRegistry,
-        DEFAULT_LATENCY_BUCKETS);
+        DEFAULT_LATENCY_BUCKETS,
+        Optional.empty());
+  }
+
+  /**
+   * Returns a {@link Configuration} for recording all metrics about the rpcs tag with the service name. This includes
+   * metrics which might produce a lot of data, such as latency histograms.
+   */
+  public static Configuration allMetricsWithServiceName(String serviceName) {
+    return new Configuration(
+        true /* isIncludeLatencyHistograms */,
+        CollectorRegistry.defaultRegistry,
+        DEFAULT_LATENCY_BUCKETS,
+        Optional.of(serviceName));
   }
 
   /**
@@ -40,7 +67,7 @@ public class Configuration {
    * recorded using the supplied {@link CollectorRegistry}.
    */
   public Configuration withCollectorRegistry(CollectorRegistry collectorRegistry) {
-    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, latencyBuckets);
+    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, latencyBuckets, Optional.empty());
   }
 
   /**
@@ -48,7 +75,7 @@ public class Configuration {
    * recorded with the specified set of buckets.
    */
   public Configuration withLatencyBuckets(double[] buckets) {
-    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, buckets);
+    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, buckets, Optional.empty());
   }
 
   /** Returns whether or not latency histograms for calls should be included. */
@@ -69,9 +96,15 @@ public class Configuration {
   private Configuration(
       boolean isIncludeLatencyHistograms,
       CollectorRegistry collectorRegistry,
-      double[] latencyBuckets) {
+      double[] latencyBuckets,
+      Optional<String> serviceId) {
     this.isIncludeLatencyHistograms = isIncludeLatencyHistograms;
     this.collectorRegistry = collectorRegistry;
     this.latencyBuckets = latencyBuckets;
+    this.serviceId = serviceId;
+  }
+
+  Optional<String> getServiceId() {
+    return serviceId;
   }
 }

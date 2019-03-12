@@ -15,27 +15,27 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-benchmarks</artifactId>
-            <version>1.11.0</version>
+            <version>1.18.0</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-okhttp</artifactId>
-            <version>1.11.0</version>
+            <version>1.18.0</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-testing</artifactId>
-            <version>1.11.0</version>
+            <version>1.18.0</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-testing</artifactId>
-            <version>1.11.0</version>
+            <version>1.18.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>21.0</version>
+            <version>27.1-jre</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
@@ -70,7 +70,7 @@
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>simpleclient</artifactId>
-            <version>0.3.0</version>
+            <version>0.6.0</version>
         </dependency>
     </dependencies>
 

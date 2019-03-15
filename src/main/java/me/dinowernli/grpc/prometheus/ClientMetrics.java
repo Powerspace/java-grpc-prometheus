@@ -116,17 +116,17 @@ class ClientMetrics {
 
     Factory(Configuration configuration) {
       CollectorRegistry registry = configuration.getCollectorRegistry();
-      String serviceId = configuration.getServiceId().map(id -> "_" + id).orElse("");
+      String serviceId = configuration.getServiceId().map(id -> "grpc_" + id).orElse("grpc");
 
-      this.rpcStarted = rpcStartedBuilder.namespace("grpc" + serviceId).register(registry);
-      this.rpcCompleted = rpcCompletedBuilder.namespace("grpc" + serviceId).register(registry);
-      this.streamMessagesReceived = streamMessagesReceivedBuilder.namespace("grpc" + serviceId).register(registry);
-      this.streamMessagesSent = streamMessagesSentBuilder.namespace("grpc" + serviceId).register(registry);
+      this.rpcStarted = rpcStartedBuilder.namespace(serviceId).register(registry);
+      this.rpcCompleted = rpcCompletedBuilder.namespace(serviceId).register(registry);
+      this.streamMessagesReceived = streamMessagesReceivedBuilder.namespace(serviceId).register(registry);
+      this.streamMessagesSent = streamMessagesSentBuilder.namespace(serviceId).register(registry);
 
       if (configuration.isIncludeLatencyHistograms()) {
         this.completedLatencySeconds = Optional.of(ClientMetrics.completedLatencySecondsBuilder
             .buckets(configuration.getLatencyBuckets())
-            .namespace("grpc" + serviceId)
+            .namespace(serviceId)
             .register(registry));
       } else {
         this.completedLatencySeconds = Optional.empty();

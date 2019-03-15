@@ -54,7 +54,7 @@ public class Configuration {
    * Returns a {@link Configuration} for recording all metrics about the rpcs tag with the service name. This includes
    * metrics which might produce a lot of data, such as latency histograms.
    */
-  public static Configuration allMetricsWithServiceName(String serviceName) {
+  public static Configuration allMetrics(String serviceName) {
     return new Configuration(
         true /* isIncludeLatencyHistograms */,
         CollectorRegistry.defaultRegistry,
@@ -67,7 +67,7 @@ public class Configuration {
    * recorded using the supplied {@link CollectorRegistry}.
    */
   public Configuration withCollectorRegistry(CollectorRegistry collectorRegistry) {
-    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, latencyBuckets, Optional.empty());
+    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, latencyBuckets, serviceId);
   }
 
   /**
@@ -75,7 +75,7 @@ public class Configuration {
    * recorded with the specified set of buckets.
    */
   public Configuration withLatencyBuckets(double[] buckets) {
-    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, buckets, Optional.empty());
+    return new Configuration(isIncludeLatencyHistograms, collectorRegistry, buckets, serviceId);
   }
 
   /** Returns whether or not latency histograms for calls should be included. */

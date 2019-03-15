@@ -28,6 +28,8 @@ import static com.google.common.truth.Truth.assertThat;
 public class MonitoringClientInterceptorIntegrationTest {
   private static final Configuration CHEAP_METRICS = Configuration.cheapMetricsOnly();
   private static final Configuration ALL_METRICS = Configuration.allMetrics();
+  private static final Configuration CHEAP_METRICS_WITH_NAME = Configuration.cheapMetricsOnly("test");
+  private static final Configuration ALL_METRICS_WITH_NAME = Configuration.allMetrics("test");
 
   private static final String RECIPIENT = "Jane";
   private static final HelloProto.HelloRequest REQUEST = HelloProto.HelloRequest.newBuilder()
@@ -63,7 +65,23 @@ public class MonitoringClientInterceptorIntegrationTest {
     Collector.MetricFamilySamples handled = findRecordedMetricOrThrow("grpc_client_completed");
     assertThat(handled.samples).hasSize(1);
     assertThat(handled.samples.get(0).labelValues).containsExactly(
-        "UNARY", HelloServiceImpl.SERVICE_NAME, HelloServiceImpl.UNARY_METHOD_NAME, "OK");
+            "UNARY", HelloServiceImpl.SERVICE_NAME, HelloServiceImpl.UNARY_METHOD_NAME, "OK");
+    assertThat(handled.samples.get(0).value).isWithin(0).of(1);
+  }
+
+  @Test
+  public void unaryRpcMetricsWithMame() throws Throwable {
+    createClientStub(CHEAP_METRICS_WITH_NAME).sayHello(REQUEST, responseRecorder);
+    assertThat(extractMetricValue("grpc_test_client_started_total")).isWithin(0).of(1);
+    assertThat(findRecordedMetricOrThrow("grpc_test_client_msg_received_total").samples).isEmpty();
+    assertThat(findRecordedMetricOrThrow("grpc_test_client_msg_sent_total").samples).isEmpty();
+
+    responseRecorder.awaitCompletion();
+
+    Collector.MetricFamilySamples handled = findRecordedMetricOrThrow("grpc_test_client_completed");
+    assertThat(handled.samples).hasSize(1);
+    assertThat(handled.samples.get(0).labelValues).containsExactly(
+            "UNARY", HelloServiceImpl.SERVICE_NAME, HelloServiceImpl.UNARY_METHOD_NAME, "OK");
     assertThat(handled.samples.get(0).value).isWithin(0).of(1);
   }
 
@@ -94,6 +112,36 @@ public class MonitoringClientInterceptorIntegrationTest {
         HelloServiceImpl.SERVICE_NAME,
         HelloServiceImpl.CLIENT_STREAM_METHOD_NAME,
         "OK");
+    assertThat(handled.samples.get(0).value).isWithin(0).of(1);
+  }
+
+  @Test
+  public void clientStreamRpcMetricsWithMame() throws Throwable {
+    StreamObserver<HelloProto.HelloRequest> requestStream =
+            createClientStub(CHEAP_METRICS_WITH_NAME).sayHelloClientStream(responseRecorder);
+    requestStream.onNext(REQUEST);
+    requestStream.onNext(REQUEST);
+
+    assertThat(extractMetricValue("grpc_test_client_started_total")).isWithin(0).of(1);
+
+    // The "sent" metric should get incremented even if the rpc hasn't terminated.
+    assertThat(extractMetricValue("grpc_test_client_msg_sent_total")).isWithin(0).of(2);
+
+    // Last request, should trigger the response.
+    requestStream.onNext(REQUEST);
+    responseRecorder.awaitCompletion();
+
+    // The received counter only considers stream messages.
+    assertThat(findRecordedMetricOrThrow("grpc_test_client_msg_received_total").samples).isEmpty();
+    assertThat(extractMetricValue("grpc_test_client_msg_sent_total")).isWithin(0).of(3);
+
+    Collector.MetricFamilySamples handled = findRecordedMetricOrThrow("grpc_test_client_completed");
+    assertThat(handled.samples).hasSize(1);
+    assertThat(handled.samples.get(0).labelValues).containsExactly(
+            "CLIENT_STREAMING",
+            HelloServiceImpl.SERVICE_NAME,
+            HelloServiceImpl.CLIENT_STREAM_METHOD_NAME,
+            "OK");
     assertThat(handled.samples.get(0).value).isWithin(0).of(1);
   }
 
@@ -152,10 +200,20 @@ public class MonitoringClientInterceptorIntegrationTest {
   @Test
   public void addsHistogramIfEnabled() throws Throwable {
     createClientStub(ALL_METRICS).sayHello(
-        HelloProto.HelloRequest.getDefaultInstance(), responseRecorder);
+            HelloProto.HelloRequest.getDefaultInstance(), responseRecorder);
     responseRecorder.awaitCompletion();
     Collector.MetricFamilySamples latency =
-        findRecordedMetricOrThrow("grpc_client_completed_latency_seconds");
+            findRecordedMetricOrThrow("grpc_client_completed_latency_seconds");
+    assertThat(latency.samples.size()).isGreaterThan(0);
+  }
+
+  @Test
+  public void addsHistogramIfEnabledWithName() throws Throwable {
+    createClientStub(ALL_METRICS_WITH_NAME).sayHello(
+            HelloProto.HelloRequest.getDefaultInstance(), responseRecorder);
+    responseRecorder.awaitCompletion();
+    Collector.MetricFamilySamples latency =
+            findRecordedMetricOrThrow("grpc_test_client_completed_latency_seconds");
     assertThat(latency.samples.size()).isGreaterThan(0);
   }
 
@@ -163,13 +221,26 @@ public class MonitoringClientInterceptorIntegrationTest {
   public void overridesHistogramBuckets() throws Throwable {
     double[] buckets = new double[] {0.1, 0.2};
     createClientStub(ALL_METRICS.withLatencyBuckets(buckets)).sayHello(
-        HelloProto.HelloRequest.getDefaultInstance(), responseRecorder);
+            HelloProto.HelloRequest.getDefaultInstance(), responseRecorder);
     responseRecorder.awaitCompletion();
 
     long expectedNum = buckets.length + 1;  // Our two buckets and the Inf buckets.
     assertThat(countSamples(
-        "grpc_client_completed_latency_seconds",
-        "grpc_client_completed_latency_seconds_bucket")).isEqualTo(expectedNum);
+            "grpc_client_completed_latency_seconds",
+            "grpc_client_completed_latency_seconds_bucket")).isEqualTo(expectedNum);
+  }
+
+  @Test
+  public void overridesHistogramBucketsWithName() throws Throwable {
+    double[] buckets = new double[] {0.1, 0.2};
+    createClientStub(ALL_METRICS_WITH_NAME.withLatencyBuckets(buckets)).sayHello(
+            HelloProto.HelloRequest.getDefaultInstance(), responseRecorder);
+    responseRecorder.awaitCompletion();
+
+    long expectedNum = buckets.length + 1;  // Our two buckets and the Inf buckets.
+    assertThat(countSamples(
+            "grpc_test_client_completed_latency_seconds",
+            "grpc_test_client_completed_latency_seconds_bucket")).isEqualTo(expectedNum);
   }
 
 
